@@ -33,6 +33,7 @@ import { updateTaskSlot } from '@/utils/supabase/tasks';
 import type { InsertTaskPayload, TaskRow, TaskOrderUpdate } from '@/utils/supabase/tasks';
 import type { Priority } from '@/types';
 import CalendarGrid from '@/components/CalendarGrid';
+import EnergyTrackerDial from '@/components/EnergyTrackerDial';
 
 // ─── Priority badge styles ────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ function parseTimeToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
 }
+
 
 type DurationMode = 'min' | 'hr' | 'hr:min';
 
@@ -700,6 +702,9 @@ export default function TasksClient() {
             </button>
           </div>
         </div>
+
+        {/* ── Energy Tracker ── */}
+        <EnergyTrackerDial />
 
         {/* ── Global error banner (connection / RLS / auth issues) ── */}
         {error && (

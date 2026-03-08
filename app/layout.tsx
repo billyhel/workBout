@@ -69,7 +69,10 @@ export default function RootLayout({
               </Link>
 
               {/* Energy */}
-              <button className="group relative w-12 h-12 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors">
+              <Link
+                href="/energy"
+                className="group relative w-12 h-12 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors"
+              >
                 <svg 
                   className="w-6 h-6 text-slate-400 group-hover:text-indigo-400 transition-colors" 
                   fill="none" 
@@ -81,7 +84,7 @@ export default function RootLayout({
                 <span className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-slate-200 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   Energy
                 </span>
-              </button>
+              </Link>
             </nav>
 
             {/* Settings Icon at Bottom */}

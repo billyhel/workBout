@@ -73,7 +73,7 @@ export default function LoginPage() {
             <span className="text-white font-bold text-xl">P</span>
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">
-            Productivity Suite
+            WorkBout
           </h1>
           <p className="text-sm text-slate-500">
             {mode === 'signin' ? 'Sign in to your account' : 'Create a new account'}

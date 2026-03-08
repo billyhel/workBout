@@ -65,6 +65,7 @@ function getCurrentMinutes(): number {
   return now.getHours() * 60 + now.getMinutes();
 }
 
+
 function isSlotInBout(slotKey: string, bout: WorkBout): boolean {
   const slotMin = toMinutes(slotKey);
   return slotMin >= toMinutes(bout.start) && slotMin < toMinutes(bout.end);

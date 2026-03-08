@@ -7,7 +7,7 @@
  * Only mounted by app/tasks/page.tsx after confirming Supabase env vars exist.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -20,6 +20,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import type { RealtimePostgresUpdatePayload } from '@supabase/supabase-js';
 import {
   SortableContext,
   useSortable,
@@ -30,6 +31,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { createClient } from '@/utils/supabase/client';
 import type { InsertTaskPayload, TaskRow, TaskOrderUpdate } from '@/utils/supabase/tasks';
 import type { Priority } from '@/types';
+import CalendarGrid from '@/components/CalendarGrid';
 
 // ─── Priority badge styles ────────────────────────────────────────────────────
 
@@ -273,7 +275,7 @@ function DroppableBoutGroup({ boutId, label, taskCount, children }: DroppableBou
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function TasksClient() {
-  const { tasks, loading, error, addTask, toggleComplete, reorderTasks, refresh } = useTasks();
+  const { tasks, loading, error, addTask, toggleComplete, reorderTasks, refresh, setTasks } = useTasks();
   const router   = useRouter();
   const supabase = createClient();
 
@@ -298,6 +300,37 @@ export default function TasksClient() {
 
   // ── DnD state ───────────────────────────────────────────────────────────────
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+
+  // Demo mapping for calendar slot task rendering (replace with persisted scheduling later)
+  const calendarSlotTasks = useMemo(() => {
+    const map: Record<string, { id: string; title: string }[]> = {};
+    tasks.forEach((task, index) => {
+      const slotKey = index % 2 === 0 ? '09:00' : '09:30';
+      if (!map[slotKey]) map[slotKey] = [];
+      map[slotKey].push({ id: task.id, title: task.title });
+    });
+    return map;
+  }, [tasks]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('tasks-updates')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tasks' },
+        (payload: RealtimePostgresUpdatePayload<TaskRow>) => {
+          const updated = payload.new;
+          setTasks((prev) =>
+            prev.map((task) => (task.id === updated.id ? { ...task, ...updated } : task))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, setTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -716,6 +749,9 @@ export default function TasksClient() {
             ) : '+ Add Task'}
           </button>
         </form>
+
+        {/* ── Calendar Grid ── */}
+        <CalendarGrid slotTasks={calendarSlotTasks} />
 
         {/* ── Task List ── */}
         <div className="space-y-3">

@@ -45,6 +45,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import type React from 'react';
 import { createClient } from '@/utils/supabase/client';
 import {
   fetchTasks,
@@ -104,6 +105,8 @@ export interface UseTasksReturn {
   reorderTasks: (updates: TaskOrderUpdate[]) => Promise<void>;
   /** Manually re-fetch all tasks from Supabase */
   refresh: () => Promise<void>;
+  /** Local state setter exposed for realtime sync merges */
+  setTasks: React.Dispatch<React.SetStateAction<TaskRow[]>>;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -254,5 +257,6 @@ export function useTasks(): UseTasksReturn {
     toggleComplete,
     reorderTasks,
     refresh: loadTasks,
+    setTasks,
   };
 }

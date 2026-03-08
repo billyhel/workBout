@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import AccountMenu from "@/components/AccountMenu";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -119,10 +120,8 @@ export default function RootLayout({
                   </svg>
                 </div>
 
-                {/* User Avatar */}
-                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">U</span>
-                </div>
+                {/* User Avatar / Account Menu */}
+                <AccountMenu />
               </div>
             </header>
 

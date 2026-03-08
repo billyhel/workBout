@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import AccountMenu from "@/components/AccountMenu";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,7 +33,10 @@ export default function RootLayout({
             {/* Navigation Icons */}
             <nav className="flex-1 flex flex-col items-center space-y-6">
               {/* Tasks */}
-              <button className="group relative w-12 h-12 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors">
+              <Link
+                href="/tasks"
+                className="group relative w-12 h-12 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors"
+              >
                 <svg 
                   className="w-6 h-6 text-slate-400 group-hover:text-indigo-400 transition-colors" 
                   fill="none" 
@@ -43,10 +48,13 @@ export default function RootLayout({
                 <span className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-slate-200 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   Tasks
                 </span>
-              </button>
+              </Link>
 
               {/* Calendar */}
-              <button className="group relative w-12 h-12 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors">
+              <Link
+                href="/calendar"
+                className="group relative w-12 h-12 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors"
+              >
                 <svg 
                   className="w-6 h-6 text-slate-400 group-hover:text-indigo-400 transition-colors" 
                   fill="none" 
@@ -58,10 +66,13 @@ export default function RootLayout({
                 <span className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-slate-200 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   Calendar
                 </span>
-              </button>
+              </Link>
 
               {/* Energy */}
-              <button className="group relative w-12 h-12 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors">
+              <Link
+                href="/energy"
+                className="group relative w-12 h-12 flex items-center justify-center rounded-xl hover:bg-slate-800 transition-colors"
+              >
                 <svg 
                   className="w-6 h-6 text-slate-400 group-hover:text-indigo-400 transition-colors" 
                   fill="none" 
@@ -73,7 +84,7 @@ export default function RootLayout({
                 <span className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-slate-200 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   Energy
                 </span>
-              </button>
+              </Link>
             </nav>
 
             {/* Settings Icon at Bottom */}
@@ -119,10 +130,8 @@ export default function RootLayout({
                   </svg>
                 </div>
 
-                {/* User Avatar */}
-                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">U</span>
-                </div>
+                {/* User Avatar / Account Menu */}
+                <AccountMenu />
               </div>
             </header>
 

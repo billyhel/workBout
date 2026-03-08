@@ -7,7 +7,7 @@
  * Only mounted by app/tasks/page.tsx after confirming Supabase env vars exist.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -20,6 +20,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import type { RealtimePostgresUpdatePayload } from '@supabase/supabase-js';
 import {
   SortableContext,
   useSortable,
@@ -28,8 +29,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useTasks } from '@/hooks/useTasks';
 import { createClient } from '@/utils/supabase/client';
+import { updateTaskSlot } from '@/utils/supabase/tasks';
 import type { InsertTaskPayload, TaskRow, TaskOrderUpdate } from '@/utils/supabase/tasks';
 import type { Priority } from '@/types';
+import CalendarGrid from '@/components/CalendarGrid';
+import EnergyTrackerDial from '@/components/EnergyTrackerDial';
 
 // ─── Priority badge styles ────────────────────────────────────────────────────
 
@@ -73,7 +77,23 @@ function formatDuration(totalMinutes: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+function parseTimeToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+
 type DurationMode = 'min' | 'hr' | 'hr:min';
+
+type ScheduleUnit = 'minutes' | 'hours';
+
+type ScheduledBlock = {
+  id: string;
+  taskId: string;
+  title: string;
+  startMinutes: number;
+  durationMinutes: number;
+};
 
 /**
  * Computes total minutes from the duration mode + field values.
@@ -109,11 +129,19 @@ function DragHandleIcon() {
 interface TaskRowContentProps {
   task: TaskRow;
   onToggleComplete: (id: string) => void;
+  onOpenScheduler?: (task: TaskRow) => void;
+  remainingMinutes?: number;
   /** When true, renders the floating overlay style (rotated, elevated) */
   isDragOverlay?: boolean;
 }
 
-function TaskRowContent({ task, onToggleComplete, isDragOverlay = false }: TaskRowContentProps) {
+function TaskRowContent({
+  task,
+  onToggleComplete,
+  onOpenScheduler,
+  remainingMinutes,
+  isDragOverlay = false,
+}: TaskRowContentProps) {
   return (
     <div className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 ${
       isDragOverlay
@@ -125,7 +153,7 @@ function TaskRowContent({ task, onToggleComplete, isDragOverlay = false }: TaskR
       {/* Drag handle (hidden in overlay) */}
       {!isDragOverlay && <DragHandleIcon />}
 
-      {/* Toggle complete */}
+      {/* Toggle complete (single control, toggles both ways) */}
       <button
         onClick={() => onToggleComplete(task.id)}
         className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-150 ${
@@ -136,10 +164,12 @@ function TaskRowContent({ task, onToggleComplete, isDragOverlay = false }: TaskR
         title={task.status === 'completed' ? 'Mark as to-do' : 'Mark as complete'}
         aria-label={task.status === 'completed' ? 'Mark as to-do' : 'Mark as complete'}
       >
-        {task.status === 'completed' && (
+        {task.status === 'completed' ? (
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
+        ) : (
+          <span className="sr-only">To-do</span>
         )}
       </button>
 
@@ -163,6 +193,14 @@ function TaskRowContent({ task, onToggleComplete, isDragOverlay = false }: TaskR
               🕐 {formatDuration(task.estimated_duration)}
             </span>
           )}
+          {remainingMinutes != null && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30"
+              title={`Remaining unscheduled time: ${remainingMinutes} minutes`}
+            >
+              ⏳ {formatDuration(remainingMinutes)} left
+            </span>
+          )}
           {task.deadline != null && (
             <span
               className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
@@ -178,6 +216,19 @@ function TaskRowContent({ task, onToggleComplete, isDragOverlay = false }: TaskR
           )}
         </div>
       </div>
+
+      {!isDragOverlay && task.status !== 'completed' && onOpenScheduler && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenScheduler(task);
+          }}
+          className="flex-shrink-0 text-xs px-2.5 py-1 rounded-md font-medium bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 transition-colors"
+        >
+          Schedule
+        </button>
+      )}
 
       {/* Status chip */}
       <span className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-md font-medium ${
@@ -198,9 +249,16 @@ function TaskRowContent({ task, onToggleComplete, isDragOverlay = false }: TaskR
 interface SortableTaskItemProps {
   task: TaskRow;
   onToggleComplete: (id: string) => void;
+  onOpenScheduler: (task: TaskRow) => void;
+  remainingMinutes?: number;
 }
 
-function SortableTaskItem({ task, onToggleComplete }: SortableTaskItemProps) {
+function SortableTaskItem({
+  task,
+  onToggleComplete,
+  onOpenScheduler,
+  remainingMinutes,
+}: SortableTaskItemProps) {
   const {
     attributes,
     listeners,
@@ -219,7 +277,12 @@ function SortableTaskItem({ task, onToggleComplete }: SortableTaskItemProps) {
 
   return (
     <li ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TaskRowContent task={task} onToggleComplete={onToggleComplete} />
+      <TaskRowContent
+        task={task}
+        onToggleComplete={onToggleComplete}
+        onOpenScheduler={onOpenScheduler}
+        remainingMinutes={remainingMinutes}
+      />
     </li>
   );
 }
@@ -273,7 +336,7 @@ function DroppableBoutGroup({ boutId, label, taskCount, children }: DroppableBou
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function TasksClient() {
-  const { tasks, loading, error, addTask, toggleComplete, reorderTasks, refresh } = useTasks();
+  const { tasks, loading, error, addTask, toggleComplete, reorderTasks, refresh, setTasks } = useTasks();
   const router   = useRouter();
   const supabase = createClient();
 
@@ -298,6 +361,100 @@ export default function TasksClient() {
 
   // ── DnD state ───────────────────────────────────────────────────────────────
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+
+  const [activeSchedulerTaskId, setActiveSchedulerTaskId] = useState<string | null>(null);
+  const [scheduleStartTime, setScheduleStartTime] = useState('09:00');
+  const [scheduleAmount, setScheduleAmount] = useState<number | ''>('');
+  const [scheduleUnit, setScheduleUnit] = useState<ScheduleUnit>('minutes');
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduledBlocks, setScheduledBlocks] = useState<ScheduledBlock[]>([]);
+  const [remainingMinutesByTaskId, setRemainingMinutesByTaskId] = useState<Record<string, number>>({});
+
+  const calendarSlotTasks = useMemo(() => {
+    const map: Record<string, { id: string; title: string }[]> = {};
+
+    tasks.forEach((task) => {
+      if (!task.slot_id) return;
+      if (!map[task.slot_id]) map[task.slot_id] = [];
+      map[task.slot_id].push({ id: task.id, title: task.title });
+    });
+
+    return map;
+  }, [tasks]);
+
+  const unscheduledTasks = useMemo(
+    () => tasks.filter((task) => !task.slot_id),
+    [tasks]
+  );
+
+  const handleOpenScheduler = (task: TaskRow) => {
+    setActiveSchedulerTaskId(task.id);
+    setScheduleStartTime('09:00');
+    setScheduleAmount('');
+    setScheduleUnit('minutes');
+    setScheduleError(null);
+  };
+
+  const handleScheduleTask = (task: TaskRow) => {
+    const amount = Number(scheduleAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setScheduleError('Enter a valid duration greater than 0.');
+      return;
+    }
+
+    const durationMinutes = scheduleUnit === 'hours' ? amount * 60 : amount;
+    const startMinutes = parseTimeToMinutes(scheduleStartTime);
+
+    if (startMinutes < 0 || startMinutes >= 24 * 60) {
+      setScheduleError('Start time must be within the day.');
+      return;
+    }
+
+    if (startMinutes + durationMinutes > 24 * 60) {
+      setScheduleError('Scheduled block must end before midnight.');
+      return;
+    }
+
+    const block: ScheduledBlock = {
+      id: `${task.id}-${Date.now()}`,
+      taskId: task.id,
+      title: task.title,
+      startMinutes,
+      durationMinutes,
+    };
+
+    setScheduledBlocks((prev) => [...prev, block]);
+
+    setRemainingMinutesByTaskId((prev) => {
+      const base = prev[task.id] ?? task.estimated_duration ?? 0;
+      const next = Math.max(0, base - durationMinutes);
+      return { ...prev, [task.id]: next };
+    });
+
+    setActiveSchedulerTaskId(null);
+    setScheduleAmount('');
+    setScheduleError(null);
+  };
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('tasks-updates')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tasks' },
+        (payload: RealtimePostgresUpdatePayload<TaskRow>) => {
+          const updated = payload.new;
+          setTasks((prev) =>
+            prev.map((task) => (task.id === updated.id ? { ...task, ...updated } : task))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, setTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -358,6 +515,29 @@ export default function TasksClient() {
     if (!draggedTask) return;
 
     const sourceBoutId = draggedTask.bout_id ?? null;
+
+    // ── Calendar slot drop handling ──────────────────────────────────────────
+    if (overId.startsWith('calendar-slot-')) {
+      const newSlotId = overId.replace('calendar-slot-', '');
+      const previousTasks = tasks;
+
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === draggedTaskId ? { ...task, slot_id: newSlotId } : task
+        )
+      );
+
+      try {
+        const updated = await updateTaskSlot(supabase, draggedTaskId, newSlotId);
+        setTasks((prev) =>
+          prev.map((task) => (task.id === updated.id ? { ...task, ...updated } : task))
+        );
+      } catch {
+        setTasks(previousTasks);
+      }
+
+      return;
+    }
 
     // ── Resolve destination bout ─────────────────────────────────────────────
     let destBoutId: string | null;
@@ -522,6 +702,9 @@ export default function TasksClient() {
             </button>
           </div>
         </div>
+
+        {/* ── Energy Tracker ── */}
+        <EnergyTrackerDial />
 
         {/* ── Global error banner (connection / RLS / auth issues) ── */}
         {error && (
@@ -717,14 +900,14 @@ export default function TasksClient() {
           </button>
         </form>
 
-        {/* ── Task List ── */}
+        {/* ── New / Unscheduled Tasks ── */}
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-slate-200">
-            Tasks{' '}
+            New / Unscheduled Tasks{' '}
             {!loading && (
               <span className="text-sm font-normal text-slate-500">
-                ({tasks.filter(t => t.status !== 'completed').length} open ·{' '}
-                {tasks.filter(t => t.status === 'completed').length} done)
+                ({unscheduledTasks.filter(t => t.status !== 'completed').length} open ·{' '}
+                {unscheduledTasks.filter(t => t.status === 'completed').length} done)
               </span>
             )}
           </h2>
@@ -738,7 +921,7 @@ export default function TasksClient() {
             </div>
 
           /* Empty state */
-          ) : tasks.length === 0 ? (
+          ) : unscheduledTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-500 border border-dashed border-slate-700 rounded-xl">
               <span className="text-4xl mb-3">📋</span>
               <p className="text-sm font-medium">No tasks yet</p>
@@ -759,19 +942,97 @@ export default function TasksClient() {
                     key={boutId ?? 'unscheduled'}
                     boutId={boutId}
                     label={boutId ? `Work Bout · ${boutId}` : 'Unscheduled'}
-                    taskCount={groupTasks.length}
+                    taskCount={groupTasks.filter((task) => !task.slot_id).length}
                   >
                     <SortableContext
                       items={groupTasks.map(t => t.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                      {groupTasks.map(task => (
-                        <SortableTaskItem
-                          key={task.id}
-                          task={task}
-                          onToggleComplete={toggleComplete}
-                        />
-                      ))}
+                      {groupTasks
+                        .filter((task) => !task.slot_id)
+                        .map((task) => (
+                          <div key={task.id} className="space-y-2">
+                            <SortableTaskItem
+                              task={task}
+                              onToggleComplete={toggleComplete}
+                              onOpenScheduler={handleOpenScheduler}
+                              remainingMinutes={remainingMinutesByTaskId[task.id]}
+                            />
+
+                            {activeSchedulerTaskId === task.id && (
+                              <div className="ml-10 rounded-lg border border-indigo-500/30 bg-slate-900/80 p-3 space-y-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
+                                  Schedule task
+                                </p>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  <label className="text-xs text-slate-400">
+                                    Start time
+                                    <input
+                                      type="time"
+                                      value={scheduleStartTime}
+                                      onChange={(e) => setScheduleStartTime(e.target.value)}
+                                      className="mt-1 w-full rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
+                                    />
+                                  </label>
+
+                                  <label className="text-xs text-slate-400">
+                                    Duration
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      step={1}
+                                      value={scheduleAmount}
+                                      onChange={(e) =>
+                                        setScheduleAmount(
+                                          e.target.value === '' ? '' : Math.max(1, Math.floor(Number(e.target.value)))
+                                        )
+                                      }
+                                      className="mt-1 w-full rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
+                                      placeholder="30"
+                                    />
+                                  </label>
+
+                                  <label className="text-xs text-slate-400">
+                                    Unit
+                                    <select
+                                      value={scheduleUnit}
+                                      onChange={(e) => setScheduleUnit(e.target.value as ScheduleUnit)}
+                                      className="mt-1 w-full rounded-md border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100"
+                                    >
+                                      <option value="minutes">Minutes</option>
+                                      <option value="hours">Hours</option>
+                                    </select>
+                                  </label>
+                                </div>
+
+                                {scheduleError && (
+                                  <p className="text-xs text-red-400">{scheduleError}</p>
+                                )}
+
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleScheduleTask(task)}
+                                    className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+                                  >
+                                    Add to calendar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveSchedulerTaskId(null);
+                                      setScheduleError(null);
+                                    }}
+                                    className="rounded-md border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                     </SortableContext>
                   </DroppableBoutGroup>
                 ))}
@@ -789,6 +1050,9 @@ export default function TasksClient() {
             </DndContext>
           )}
         </div>
+
+        {/* ── Calendar Grid (drop unscheduled tasks into time slots) ── */}
+        <CalendarGrid slotTasks={calendarSlotTasks} scheduledBlocks={scheduledBlocks} />
 
       </div>
     </div>

@@ -52,6 +52,7 @@ export interface TaskRow {
   deadline: string | null;           // matches `deadline TIMESTAMPTZ` (nullable, ISO 8601) — added in 002
   order_index: number;               // matches `order_index INT NOT NULL DEFAULT 0` — added in 003
   bout_id: string | null;            // matches `bout_id TEXT` (nullable) — added in 003
+  slot_id: string | null;            // matches `slot_id TEXT` (nullable)
   created_at: string;                // ISO 8601 — matches `created_at TIMESTAMPTZ`
   updated_at: string;                // ISO 8601 — matches `updated_at TIMESTAMPTZ`
 }
@@ -84,6 +85,27 @@ export interface TaskOrderUpdate {
   order_index: number;
   /** Destination bout id, or null for the unscheduled pool */
   bout_id: string | null;
+}
+
+/** Update a task's calendar slot assignment (`slot_id`), null = unscheduled. */
+export async function updateTaskSlot(
+  supabase: SupabaseClient,
+  taskId: string,
+  newSlotId: string | null,
+): Promise<TaskRow> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ slot_id: newSlotId })
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[updateTaskSlot] Error:', error.message);
+    throw new Error(error.message);
+  }
+
+  return data;
 }
 
 

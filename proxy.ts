@@ -28,7 +28,7 @@ type CookieOptions = {
  * Without this middleware, users would be logged out whenever their
  * short-lived access token expires (default: 1 hour).
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Start with a passthrough response; may be replaced inside setAll
   let supabaseResponse = NextResponse.next({ request });
 

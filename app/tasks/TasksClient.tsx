@@ -30,6 +30,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { createClient } from '@/utils/supabase/client';
 import type { InsertTaskPayload, TaskRow, TaskOrderUpdate } from '@/utils/supabase/tasks';
 import type { Priority } from '@/types';
+import CalendarGrid from '@/components/CalendarGrid';
 
 // ─── Priority badge styles ────────────────────────────────────────────────────
 
@@ -298,6 +299,17 @@ export default function TasksClient() {
 
   // ── DnD state ───────────────────────────────────────────────────────────────
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+
+  // Demo mapping for calendar slot task rendering (replace with persisted scheduling later)
+  const calendarSlotTasks = useMemo(() => {
+    const map: Record<string, { id: string; title: string }[]> = {};
+    tasks.forEach((task, index) => {
+      const slotKey = index % 2 === 0 ? '09:00' : '09:30';
+      if (!map[slotKey]) map[slotKey] = [];
+      map[slotKey].push({ id: task.id, title: task.title });
+    });
+    return map;
+  }, [tasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -716,6 +728,9 @@ export default function TasksClient() {
             ) : '+ Add Task'}
           </button>
         </form>
+
+        {/* ── Calendar Grid ── */}
+        <CalendarGrid slotTasks={calendarSlotTasks} />
 
         {/* ── Task List ── */}
         <div className="space-y-3">

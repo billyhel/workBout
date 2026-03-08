@@ -1,8 +1,12 @@
-- [x] Create `components/CalendarGrid.tsx` as a client component using `useDroppable` for each 30-minute interval from 12:00 AM to 11:00 PM.
-- [x] Implement work-bout highlighting and labeling (including default example: 9:00 AM–11:00 AM "Deep Focus").
-- [x] Support rendering dropped tasks as a list within each interval slot via props-driven slot task map.
-- [x] Integrate `CalendarGrid` into `app/tasks/TasksClient.tsx` with minimal demo state/mapping compatible with existing DnD context.
-- [x] Run build test to ensure TypeScript and Next.js compile successfully.
-- [ ] Add `updateTaskSlot(taskId, newSlotId)` helper in `utils/supabase/tasks.ts`.
-- [ ] Add realtime `useEffect` subscription in `app/tasks/TasksClient.tsx` for `tasks` UPDATE events.
-- [ ] Run `npm run build` after implementing slot update + realtime sync.
+- [x] Implement new CalendarGrid with 24-hour vertical timeline (60px/hour), sticky time labels, 30-minute background grid lines, and current time indicator updating every minute
+- [x] Add calendar route/page that renders CalendarGrid
+- [x] Ensure sidebar calendar icon navigates to the calendar page
+- [x] Run build verification
+- [x] Run browser verification for calendar access and UI behavior
+- [x] Make tasks icon navigate to `/tasks` from sidebar in app layout
+- [x] Verify tasks icon navigation in browser
+- [x] Add inline scheduling input on unscheduled task click (start time + duration value + unit)
+- [x] Create calendar allocations from entered start time and duration
+- [x] Keep tasks in unscheduled list and decrement remaining duration instead of removing
+- [ ] Render scheduled allocation as one connected calendar block (not repeated per 30-min slot)
+- [ ] Verify connected-block scheduling flow in browser

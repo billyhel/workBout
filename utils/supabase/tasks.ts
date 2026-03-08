@@ -52,6 +52,7 @@ export interface TaskRow {
   deadline: string | null;           // matches `deadline TIMESTAMPTZ` (nullable, ISO 8601) — added in 002
   order_index: number;               // matches `order_index INT NOT NULL DEFAULT 0` — added in 003
   bout_id: string | null;            // matches `bout_id TEXT` (nullable) — added in 003
+  slot_id: string | null;            // matches `slot_id TEXT` (nullable)
   created_at: string;                // ISO 8601 — matches `created_at TIMESTAMPTZ`
   updated_at: string;                // ISO 8601 — matches `updated_at TIMESTAMPTZ`
 }

@@ -1,5 +1,8 @@
-- [ ] Create `components/CalendarGrid.tsx` as a client component using `useDroppable` for each 30-minute interval from 12:00 AM to 11:00 PM.
-- [ ] Implement work-bout highlighting and labeling (including default example: 9:00 AM–11:00 AM "Deep Focus").
-- [ ] Support rendering dropped tasks as a list within each interval slot via props-driven slot task map.
-- [ ] Integrate `CalendarGrid` into `app/tasks/TasksClient.tsx` with minimal demo state/mapping compatible with existing DnD context.
-- [ ] Run build test to ensure TypeScript and Next.js compile successfully.
+- [x] Create `components/CalendarGrid.tsx` as a client component using `useDroppable` for each 30-minute interval from 12:00 AM to 11:00 PM.
+- [x] Implement work-bout highlighting and labeling (including default example: 9:00 AM–11:00 AM "Deep Focus").
+- [x] Support rendering dropped tasks as a list within each interval slot via props-driven slot task map.
+- [x] Integrate `CalendarGrid` into `app/tasks/TasksClient.tsx` with minimal demo state/mapping compatible with existing DnD context.
+- [x] Run build test to ensure TypeScript and Next.js compile successfully.
+- [ ] Add `updateTaskSlot(taskId, newSlotId)` helper in `utils/supabase/tasks.ts`.
+- [ ] Add realtime `useEffect` subscription in `app/tasks/TasksClient.tsx` for `tasks` UPDATE events.
+- [ ] Run `npm run build` after implementing slot update + realtime sync.

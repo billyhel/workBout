@@ -86,6 +86,27 @@ export interface TaskOrderUpdate {
   bout_id: string | null;
 }
 
+/** Update a task's calendar slot assignment (`slot_id`), null = unscheduled. */
+export async function updateTaskSlot(
+  supabase: SupabaseClient,
+  taskId: string,
+  newSlotId: string | null,
+): Promise<TaskRow> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ slot_id: newSlotId })
+    .eq('id', taskId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[updateTaskSlot] Error:', error.message);
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FETCH — SELECT all tasks for the authenticated user

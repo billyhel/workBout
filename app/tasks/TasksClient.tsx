@@ -7,7 +7,7 @@
  * Only mounted by app/tasks/page.tsx after confirming Supabase env vars exist.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -20,6 +20,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import type { RealtimePostgresUpdatePayload } from '@supabase/supabase-js';
 import {
   SortableContext,
   useSortable,
@@ -274,7 +275,7 @@ function DroppableBoutGroup({ boutId, label, taskCount, children }: DroppableBou
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function TasksClient() {
-  const { tasks, loading, error, addTask, toggleComplete, reorderTasks, refresh } = useTasks();
+  const { tasks, loading, error, addTask, toggleComplete, reorderTasks, refresh, setTasks } = useTasks();
   const router   = useRouter();
   const supabase = createClient();
 
@@ -310,6 +311,26 @@ export default function TasksClient() {
     });
     return map;
   }, [tasks]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('tasks-updates')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tasks' },
+        (payload: RealtimePostgresUpdatePayload<TaskRow>) => {
+          const updated = payload.new;
+          setTasks((prev) =>
+            prev.map((task) => (task.id === updated.id ? { ...task, ...updated } : task))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, setTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
